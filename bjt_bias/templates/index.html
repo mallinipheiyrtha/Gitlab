@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <title>BJT Common-Emitter DC Bias Calculator</title>
+    <style>
+        :root {
+            --bg:#f5f0e8;
+            --card:#ffffff;
+            --muted:#5f5b55;
+            --accent:#b30000;
+            --warning:#e53935;
+            --active:#1e88e5;
+            --sat:#fb8c00;
+            --cutoff:#6e7679;
+        }
+        * { box-sizing: border-box; margin:0; padding:0; }
+        body { font: 14px/1.5 "Segoe UI", Thai, system-ui, sans-serif; background: var(--bg); color: #333; }
+        .wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        h1 { text-align: center; margin-bottom: 1rem; color: var(--accent); }
+        h2 { margin: 1.5rem 0 0.5rem; }
+        .form-card { background: var(--card); padding: 2rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .form-card h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+        .field-row { margin-bottom: 1rem; }
+        .field-row label { display: block; margin-bottom: 0.3rem; font-weight: 600; }
+        .field-row input { width: 100%; padding: 6px 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+        .field-row input[type=text] { inputmode: decimal; }
+        .errors { background: #fff; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; color: var(--warning); list-style: none; }
+        .errors li { margin: 0.2rem 0; }
+        button { margin-top: 1rem; padding: 8px 16px; font-size: 1rem; cursor: pointer; }
+        .result-card { margin-top: 2rem; background: var(--card); padding: 2rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: none; }
+        .result-card.show { display: block; }
+        .region { padding: 3px 6px; border-radius: 4px; color: white; font-size: 0.85rem; margin: 2px; }
+        .region-active { background: var(--active); }
+        .region-saturation { background: var(--sat); }
+        .region-cutoff { background: var(--cutoff); }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        table th, table td { padding: 8px 4px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+        table th { width: 40%; }
+        .cross-check { margin-top: 1.5rem; padding: 1rem; background: #fafafa; border-radius: 4px; }
+        .cross-check agrues { color: var(--active); }
+        .cross-check .disagrees { color: var(--warning); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>BJT Common-Emitter DC Bias</h1>
+
+    <div class="form-card">
+        <h3>อินพุต (DC Bias)</h3>
+        <form method="post" action="/calculate">
+            <div class="field-row">
+                <label for="vcc">VCC (V)</label>
+                <input type="text" name="vcc" value="{{ values.vcc }}" required>
+            </div>
+            <div class="field-row">
+                <label for="r1">R1 (Ω)</label>
+                <input type="text" name="r1" value="{{ values.r1 }}" required>
+            </div>
+            <div class="field-row">
+                <label for="r2">R2 (Ω)</label>
+                <input type="text" name="r2" value="{{ values.r2 }}" required>
+            </div>
+            <div class="field-row">
+                <label for="rc">RC (Ω)</label>
+                <input type="text" name="rc" value="{{ values.rc }}" required>
+            </div>
+            <div class="field-row">
+                <label for="re">RE (Ω)</label>
+                <input type="text" name="re" value="{{ values.re }}" required>
+            </div>
+            <div class="field-row">
+                <label for="beta">beta</label>
+                <input type="text" name="beta" value="{{ values.beta }}" required>
+            </div>
+            <div class="field-row">
+                <label for="vbe">VBE (V)</label>
+                <input type="text" name="vbe" value="{{ values.vbe }}" required>
+            </div>
+            <div class="errors" id="errors-list">
+                {% for field, msg in errors.items() %}
+                    <li>{{ field }}: {{ msg }}</li>
+                {% endfor %}
+            </div>
+            <button type="submit">คำนวณ</button>
+        </form>
+    </div>
+
+    {% if analysis is not none %}
+    <div class="result-card show" id="results">
+        <h2>ผลลัพธ์</h2>
+
+        <div class="region region-{{ analysis.primary.region }}">{{ analysis.primary.region|capitalize }}</div>
+
+        {% if analysis.primary.warning %}
+        <p class="warning">{{ analysis.primary.warning }}</p>
+        {% endif %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ค่า</th>
+                    <th>ผลลัพธ์</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>VBB</td>
+                    <td>{{ "%.3f" % analysis.primary.vbb_v }} V</td>
+                </tr>
+                <tr>
+                    <td>RB</td>
+                    <td>{{ "%.1f" % analysis.primary.rb_ohm }} Ω</td>
+                </tr>
+                <tr>
+                    <td>IB</td>
+                    <td>{{ "%.3f" % (analysis.primary.ib_a * 1000) }} mA</td>
+                </tr>
+                <tr>
+                    <td>IC</td>
+                    <td>{{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA</td>
+                </tr>
+                <tr>
+                    <td>IE</td>
+                    <td>{{ "%.3f" % (analysis.primary.ie_a * 1000) }} mA</td>
+                </tr>
+                <tr>
+                    <td>VCE</td>
+                    <td>{{ "%.3f" % analysis.primary.vce_v }} V</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="cross-check">
+            <strong>การตรวจสอบข้าม (Cross-check)</strong>
+            <p>แบบจำลอง Thevenin: IC = {{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.primary.vce_v }} V</p>
+            <p>แบบจำลองเชิงตัวเลข: IC = {{ "%.3f" % (analysis.check.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.check.vce_v }} V</p>
+            <p class="{% if analysis.comparison.agrees %}agrees{% else %}disagrees{% endif %}">
+                {% if analysis.comparison.agrees %}ผลลัพธ์ตรงกัน (Agrees){% else %}ผลลัพธ์ไม่ตรงกัน (Disagrees){% endif %}
+            </p>
+            <p>ความแตกต่างของ IC: {{ "%.2e" % analysis.comparison.delta_ic_a }} A</p>
+            <p>ความแตกต่างของ VCE: {{ "%.3f" % analysis.comparison.delta_vce_v }} V</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>
