@@ -156,6 +156,36 @@ def test_saturation_region():
 
 
 # ---------------------------------------------------------------------------
+# Node-voltage tests (results SI-units plan, Task 1)
+# ---------------------------------------------------------------------------
+
+def test_node_voltages_follow_equations_active():
+    inp, _ = parse_inputs(VALID)
+    r = solve_thevenin(inp)
+    assert r.region == "active"
+    assert r.ve_v == pytest.approx(r.ie_a * inp.re)
+    assert r.vb_v == pytest.approx(r.ve_v + inp.vbe)
+    assert r.vc_v == pytest.approx(inp.vcc - r.ic_a * inp.rc)
+    assert r.vce_v == pytest.approx(r.vc_v - r.ve_v)
+
+
+def test_node_voltages_cutoff():
+    inp, _ = parse_inputs({**VALID, "vbe": "11.9"})  # VTH - VBE < 0 → IB <= 0
+    r = solve_thevenin(inp)
+    assert r.region == "cutoff"
+    assert r.ve_v == 0.0
+    assert r.vc_v == pytest.approx(inp.vcc)
+    assert r.vb_v == pytest.approx(r.vbb_v)
+
+
+def test_node_voltages_saturation():
+    inp, _ = parse_inputs({**VALID, "rc": "100000"})
+    r = solve_thevenin(inp)
+    assert r.region == "saturation"
+    assert r.vce_v == pytest.approx(r.vc_v - r.ve_v)
+
+
+# ---------------------------------------------------------------------------
 # compare_results tests (Task 3)
 # ---------------------------------------------------------------------------
 
@@ -163,24 +193,42 @@ def test_compare_agreement():
     """Two results that are numerically close should agree (within 1e-6 rel tol)."""
     # With VCE ≈ 4.6, 1e-6 rel tol ≈ 4.6e-6 absolute. Use difference 0.00001 (1e-5)
     # which is slightly above 4.6e-6, so let's use 0.000001 (1e-6) to be safe.
-    r1 = BiasResult(2.1, 8245.6, 1.286e-5, 1.286e-3, 1.299e-3, 4.6, "active", None)
-    r2 = BiasResult(2.1, 8245.6, 1.286e-5, 1.286e-3, 1.299e-3, 4.600001, "active", None)
+    r1 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=1.286e-5, ic_a=1.286e-3, ie_a=1.299e-3,
+        vce_v=4.6, vb_v=0.7, ve_v=0.0, vc_v=4.6, region="active", warning=None,
+    )
+    r2 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=1.286e-5, ic_a=1.286e-3, ie_a=1.299e-3,
+        vce_v=4.600001, vb_v=0.7, ve_v=0.0, vc_v=4.600001, region="active", warning=None,
+    )
     cmp = compare_results(r1, r2)
     assert cmp["agrees"] is True, f"Expected agrees=True but got {cmp}"
 
 
 def test_compare_mismatch():
     """Two results with sufficiently different IC/VCE should not agree."""
-    r1 = BiasResult(2.1, 8245.6, 1e-3, 1e-3, 1e-3, 5.0, "active", None)
-    r2 = BiasResult(2.1, 8245.6, 2e-3, 2e-3, 2e-3, 4.0, "active", None)
+    r1 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=1e-3, ic_a=1e-3, ie_a=1e-3,
+        vce_v=5.0, vb_v=0.7, ve_v=0.0, vc_v=5.0, region="active", warning=None,
+    )
+    r2 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=2e-3, ic_a=2e-3, ie_a=2e-3,
+        vce_v=4.0, vb_v=0.7, ve_v=0.0, vc_v=4.0, region="active", warning=None,
+    )
     cmp = compare_results(r1, r2)
     assert cmp["agrees"] is False
 
 
 def test_compare_delta_keys():
     """compare_results returns the expected keys."""
-    r1 = BiasResult(2.1, 8245.6, 1e-5, 1e-3, 1.299e-3, 4.6, "active", None)
-    r2 = BiasResult(2.1, 8245.6, 2e-5, 1.5e-3, 1.301e-3, 4.5, "active", None)
+    r1 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=1e-5, ic_a=1e-3, ie_a=1.299e-3,
+        vce_v=4.6, vb_v=0.7, ve_v=0.0, vc_v=4.6, region="active", warning=None,
+    )
+    r2 = BiasResult(
+        vbb_v=2.1, rb_ohm=8245.6, ib_a=2e-5, ic_a=1.5e-3, ie_a=1.301e-3,
+        vce_v=4.5, vb_v=0.7, ve_v=0.0, vc_v=4.5, region="active", warning=None,
+    )
     cmp = compare_results(r1, r2)
     assert "agrees" in cmp
     assert "delta_ic_a" in cmp

@@ -61,6 +61,9 @@ class BiasResult:
     ic_a: float           # Collector current (A)
     ie_a: float           # Emitter current (A)
     vce_v: float          # Collector-emitter voltage (V)
+    vb_v: float           # Base node voltage (V)
+    ve_v: float           # Emitter node voltage (V)
+    vc_v: float           # Collector node voltage (V)
     region: str           # "active" | "saturation" | "cutoff"
     warning: Optional[str]  # Human-readable warning, or None
 
@@ -241,9 +244,15 @@ def solve_thevenin(inp: BiasInput) -> BiasResult:
     # VCE = VCC - IC * RC - IE * RE
     vce = inp.vcc - ic * inp.rc - ie * inp.re
 
+    # Node voltages: VE = IE·RE, VC = VCC − IC·RC, VB = VE + VBE
+    ve = ie * inp.re
+    vc = inp.vcc - ic * inp.rc
+    vb = ve + inp.vbe
+
     # Region classification
     if ib <= 0:
-        # Cutoff: collector current zero, VCE = VCC
+        # Cutoff: no current flows, base is fixed by the divider and the
+        # collector sits at VCC; VCE = VC - VE = VCC.
         return BiasResult(
             vbb_v=vbb,
             rb_ohm=rb,
@@ -251,6 +260,9 @@ def solve_thevenin(inp: BiasInput) -> BiasResult:
             ic_a=0.0,
             ie_a=0.0,
             vce_v=float(inp.vcc),
+            vb_v=vbb,
+            ve_v=0.0,
+            vc_v=float(inp.vcc),
             region="cutoff",
             warning="ทรานซิสเตอร์อยู่ในย่านคัตออฟ (IB = 0) — ไม่มีกระแสสะสม",
         )
@@ -265,6 +277,9 @@ def solve_thevenin(inp: BiasInput) -> BiasResult:
             ic_a=ic,
             ie_a=ie,
             vce_v=vce,
+            vb_v=vb,
+            ve_v=ve,
+            vc_v=vc,
             region="saturation",
             warning="ทรานซิสเตอร์อยู่ในย่านแซทเทอเรชัน (VCE ≤ 0.2 V) — ค่าที่ได้จากสมการแอกทีฟใช้ไม่ได้จริง",
         )
@@ -277,6 +292,9 @@ def solve_thevenin(inp: BiasInput) -> BiasResult:
         ic_a=ic,
         ie_a=ie,
         vce_v=vce,
+        vb_v=vb,
+        ve_v=ve,
+        vc_v=vc,
         region="active",
         warning=None,
     )
@@ -320,38 +338,53 @@ def solve_numerical(inp: BiasInput) -> BiasResult:
     ie = (1 + inp.beta) * ib
     vce = inp.vcc - ic * inp.rc - ie * inp.re
 
+    # Node voltages follow the same equations as the Thevenin path
+    ve = ie * inp.re
+    vc = inp.vcc - ic * inp.rc
+    vb_node = ve + inp.vbe
+    vbb = inp.vcc * inp.r2 / (inp.r1 + inp.r2)
+
     # Re-use the same region logic as solve_thevenin
     if ib <= 0:
         return BiasResult(
-            vbb_v=inp.vcc * inp.r2 / (inp.r1 + inp.r2),
+            vbb_v=vbb,
             rb_ohm=(inp.r1 * inp.r2) / (inp.r1 + inp.r2),
             ib_a=0.0,
             ic_a=0.0,
             ie_a=0.0,
             vce_v=float(inp.vcc),
+            vb_v=vbb,
+            ve_v=0.0,
+            vc_v=float(inp.vcc),
             region="cutoff",
             warning="ทรานซิสเตอร์อยู่ในย่านคัตออฟ (IB = 0) — ไม่มีกระแสสะสม",
         )
 
     if vce <= VCE_SAT_V:
         return BiasResult(
-            vbb_v=inp.vcc * inp.r2 / (inp.r1 + inp.r2),
+            vbb_v=vbb,
             rb_ohm=(inp.r1 * inp.r2) / (inp.r1 + inp.r2),
             ib_a=ib,
             ic_a=ic,
             ie_a=ie,
             vce_v=vce,
+            vb_v=vb_node,
+            ve_v=ve,
+            vc_v=vc,
             region="saturation",
             warning="ทรานซิสเตอร์อยู่ในย่านแซทเทอเรชัน (VCE ≤ 0.2 V) — ค่าที่ได้จากสมการแอกทีฟใช้ไม่ได้จริง",
         )
 
     return BiasResult(
-        vbb_v=inp.vcc * inp.r2 / (inp.r1 + inp.r2),
+        vbb_v=vbb,
         rb_ohm=(inp.r1 * inp.r2) / (inp.r1 + inp.r2),
         ib_a=ib,
         ic_a=ic,
         ie_a=ie,
         vce_v=vce,
+        vb_v=vb_node,
+        ve_v=ve,
+        vc_v=vc,
         region="active",
         warning=None,
     )
