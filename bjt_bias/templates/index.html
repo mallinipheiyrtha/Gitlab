@@ -155,16 +155,14 @@
         .btn-calculate svg { width: 20px; height: 20px; }
 
         /* --- Circuit card --- */
-        .circuit-placeholder {
-            display: grid;
-            place-items: center;
-            min-height: 320px;
-            margin-top: 4px;
-            border: 1px dashed #cbd5e1;
-            border-radius: 10px;
-            color: #64748b;
-            font-size: 13.5px;
-        }
+        .circuit-figure { margin: 0; }
+        .circuit-figure svg { display: block; width: 100%; max-width: 400px; margin: 0 auto; height: auto; }
+        .wire path,
+        .wire polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .q-body { fill: #e8f1fb; stroke: var(--ink); stroke-width: 2; }
+        .node { fill: var(--ink); stroke: none; }
+        .lbl { fill: var(--ink); font-family: "Segoe UI", "Sarabun", system-ui, sans-serif; font-size: 13px; }
+        .lbl.strong { font-weight: 600; }
 
         /* --- Results card --- */
         .results-table { width: 100%; border-collapse: collapse; font-size: 15px; }
@@ -338,7 +336,83 @@
                     </svg>
                     <h2>Circuit: Common-Emitter Amplifier</h2>
                 </div>
-                <div class="circuit-placeholder">แผนภาพวงจร</div>
+                <figure class="circuit-figure">
+                    <svg viewBox="0 0 380 440" role="img" aria-labelledby="circuit-title">
+                        <title id="circuit-title">Voltage-divider bias circuit</title>
+                        <g class="wire">
+                            <!-- VCC rail and collector branch -->
+                            <path d="M262 42 H150 V92"></path>
+                            <path d="M262 42 V92"></path>
+                            <path d="M262 177 V197"></path>
+                            <path d="M262 197 L232 216"></path>
+                            <path d="M232 236 L262 255 V272"></path>
+                            <path d="M262 255 V272"></path>
+                            <path d="M262 357 V378"></path>
+                            <!-- Base branch -->
+                            <path d="M150 177 V226"></path>
+                            <path d="M150 226 H232"></path>
+                            <path d="M150 226 V252"></path>
+                            <path d="M232 208 V244"></path>
+                            <path d="M150 337 V378"></path>
+                        </g>
+
+                        <!-- Resistors -->
+                        <g class="wire">
+                            <polyline points="150,92 139,102 161,114 139,126 161,138 139,150 161,162 150,177"></polyline>
+                            <polyline points="150,252 139,262 161,274 139,286 161,298 139,310 161,322 150,337"></polyline>
+                            <polyline points="262,92 251,102 273,114 251,126 273,138 251,150 273,162 262,177"></polyline>
+                            <polyline points="262,272 251,282 273,294 251,306 273,318 251,330 273,342 262,357"></polyline>
+                        </g>
+
+                        <!-- Transistor -->
+                        <circle class="q-body" cx="245" cy="225" r="30"></circle>
+                        <polygon class="node" points="262,255 251,255 258,245"></polygon>
+                        <circle class="node" cx="262" cy="42" r="3.5"></circle>
+                        <circle class="node" cx="150" cy="226" r="3.5"></circle>
+
+                        <!-- Grounds -->
+                        <g class="wire">
+                            <path d="M138 378 H162"></path>
+                            <path d="M143 385 H157"></path>
+                            <path d="M147 392 H153"></path>
+                            <path d="M250 378 H274"></path>
+                            <path d="M255 385 H269"></path>
+                            <path d="M259 392 H265"></path>
+                        </g>
+
+                        <!-- Labels -->
+                        <text class="lbl" x="262" y="24" text-anchor="middle">
+                            <tspan font-style="italic">V</tspan><tspan baseline-shift="sub" font-size="9">CC</tspan>
+                            = {{ values.vcc }} V
+                        </text>
+
+                        <text class="lbl" x="136" y="134" text-anchor="end">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
+                        </text>
+                        <text class="lbl strong" x="136" y="152" text-anchor="end">{{ values.r1|ohm }}</text>
+
+                        <text class="lbl" x="136" y="294" text-anchor="end">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">2</tspan>
+                        </text>
+                        <text class="lbl strong" x="136" y="312" text-anchor="end">{{ values.r2|ohm }}</text>
+
+                        <text class="lbl" x="278" y="134">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">C</tspan>
+                        </text>
+                        <text class="lbl strong" x="278" y="152">{{ values.rc|ohm }}</text>
+
+                        <text class="lbl" x="278" y="310">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">E</tspan>
+                        </text>
+                        <text class="lbl strong" x="278" y="328">{{ values.re|ohm }}</text>
+
+                        <text class="lbl" x="290" y="216">
+                            <tspan font-style="italic">Q</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
+                        </text>
+                        <text class="lbl" x="290" y="234">NPN</text>
+                        <text class="lbl" x="290" y="252">(β = {{ values.beta }})</text>
+                    </svg>
+                </figure>
             </section>
 
             {% if analysis is not none %}

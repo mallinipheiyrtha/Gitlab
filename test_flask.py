@@ -155,6 +155,25 @@ def test_results_disagreement_state():
     assert "ไม่ตรงกัน" in html
 
 
+def test_format_ohm_filter():
+    from bjt_bias.app import format_ohm
+
+    assert format_ohm("47000") == "47 kΩ"
+    assert format_ohm("2200") == "2.2 kΩ"
+    assert format_ohm("470") == "470 Ω"
+    assert format_ohm("2200000") == "2.2 MΩ"
+    assert format_ohm("abc") == "—"
+    assert format_ohm("") == "—"
+
+
+def test_get_renders_circuit_values():
+    with app.test_client() as client:
+        html = client.get("/").get_data(as_text=True)
+    assert "Circuit: Common-Emitter Amplifier" in html
+    assert "47 kΩ" in html  # r1 ค่าเริ่มต้น 47000 Ω
+    assert "22 kΩ" not in html  # กันการ hard-code ค่าจากภาพ mockup
+
+
 if __name__ == "__main__":
     test_get_index()
     test_post_calculate_valid()

@@ -4,6 +4,8 @@ Serves a single page with a form and result display. All engineering
 logic lives in `bjt_bias.bjt` — this module imports nothing from Flask.
 """
 
+import math
+
 from flask import Flask, render_template, request
 
 from .bjt import (
@@ -16,6 +18,26 @@ from .bjt import (
 
 
 app = Flask(__name__)
+
+
+@app.template_filter("ohm")
+def format_ohm(raw: object) -> str:
+    """Format a raw resistance value for display in the circuit diagram.
+
+    Values come straight from the form, so they may be missing, empty, or
+    non-numeric; those render as an em dash instead of raising.
+    """
+    try:
+        value = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(value):
+        return "—"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:g} MΩ"
+    if value >= 1_000:
+        return f"{value / 1_000:g} kΩ"
+    return f"{value:g} Ω"
 
 #: Default values used when the page loads via GET /
 DEFAULTS = {
