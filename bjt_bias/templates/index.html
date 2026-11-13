@@ -196,6 +196,14 @@
 
         .region-warning { margin: 8px 0 0; font-size: 13.5px; color: #9a3412; }
 
+        .thevenin-note {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+        .thevenin-note .var { font-style: italic; font-family: "Cambria Math", Georgia, serif; }
+        .thevenin-note sub { font-size: 0.72em; }
+
         .results-placeholder {
             display: grid;
             place-items: center;
@@ -447,31 +455,40 @@
                 <table class="results-table">
                     <tbody>
                         <tr>
-                            <th scope="row"><span class="var">V<sub>BB</sub></span></th>
-                            <td class="value">{{ "%.3f" % analysis.primary.vbb_v }} V</td>
+                            <th scope="row"><span class="var">V<sub>B</sub></span></th>
+                            <td class="value">{{ analysis.primary.vb_v|si("V") }}</td>
                         </tr>
                         <tr>
-                            <th scope="row"><span class="var">R<sub>B</sub></span></th>
-                            <td class="value">{{ "%.1f" % analysis.primary.rb_ohm }} Ω</td>
+                            <th scope="row"><span class="var">V<sub>E</sub></span></th>
+                            <td class="value">{{ analysis.primary.ve_v|si("V") }}</td>
                         </tr>
                         <tr>
-                            <th scope="row"><span class="var">I<sub>B</sub></span></th>
-                            <td class="value">{{ "%.3f" % (analysis.primary.ib_a * 1000) }} mA</td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><span class="var">I<sub>C</sub></span></th>
-                            <td class="value">{{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA</td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><span class="var">I<sub>E</sub></span></th>
-                            <td class="value">{{ "%.3f" % (analysis.primary.ie_a * 1000) }} mA</td>
+                            <th scope="row"><span class="var">V<sub>C</sub></span></th>
+                            <td class="value">{{ analysis.primary.vc_v|si("V") }}</td>
                         </tr>
                         <tr>
                             <th scope="row"><span class="var">V<sub>CE</sub></span></th>
-                            <td class="value">{{ "%.3f" % analysis.primary.vce_v }} V</td>
+                            <td class="value">{{ analysis.primary.vce_v|si("V") }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>B</sub></span></th>
+                            <td class="value">{{ analysis.primary.ib_a|si("A") }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>C</sub></span></th>
+                            <td class="value">{{ analysis.primary.ic_a|si("A") }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>E</sub></span></th>
+                            <td class="value">{{ analysis.primary.ie_a|si("A") }}</td>
                         </tr>
                     </tbody>
                 </table>
+
+                <p class="thevenin-note">
+                    ค่าเทียบเคียง Thevenin: V<sub>BB</sub> = {{ analysis.primary.vbb_v|si("V") }}
+                    · R<sub>B</sub> = {{ analysis.primary.rb_ohm|si("Ω") }}
+                </p>
 
                 <span class="region-badge region-{{ analysis.primary.region }}">
                     {{ region_labels.get(analysis.primary.region, analysis.primary.region) }}
@@ -482,8 +499,8 @@
 
                 <div class="check-box" data-state="{{ 'agrees' if analysis.comparison.agrees else 'disagrees' }}">
                     <h3>การตรวจสอบข้าม</h3>
-                    <p>แบบจำลอง Thevenin: IC = {{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.primary.vce_v }} V</p>
-                    <p>แบบจำลองเชิงตัวเลข: IC = {{ "%.3f" % (analysis.check.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.check.vce_v }} V</p>
+                    <p>แบบจำลอง Thevenin: IC = {{ analysis.primary.ic_a|si("A") }}, VCE = {{ analysis.primary.vce_v|si("V") }}</p>
+                    <p>แบบจำลองเชิงตัวเลข: IC = {{ analysis.check.ic_a|si("A") }}, VCE = {{ analysis.check.vce_v|si("V") }}</p>
                     <p class="state">
                         {% if analysis.comparison.agrees %}ผลลัพธ์ตรงกัน (Agrees){% else %}ผลลัพธ์ไม่ตรงกัน (Disagrees){% endif %}
                     </p>

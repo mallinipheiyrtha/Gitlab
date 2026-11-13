@@ -79,6 +79,9 @@ def _stub_analysis(region="active", warning=None, agrees=True):
         ic_a=1.286e-3,
         ie_a=1.299e-3,
         vce_v=4.655,
+        vb_v=1.999,
+        ve_v=1.299,
+        vc_v=5.954,
         region=region,
         warning=warning,
     )
@@ -188,6 +191,26 @@ def test_format_ohm_rounds_before_choosing_unit():
     from bjt_bias.app import format_ohm
 
     assert format_ohm("999999.5") == "1 MΩ"
+
+
+def test_format_si_filter():
+    from bjt_bias.app import format_si
+
+    assert format_si(12.298e-6, "A") == "12.298 µA"
+    assert format_si(1.286e-3, "A") == "1.286 mA"
+    assert format_si(1.5, "A") == "1.5 A"
+    assert format_si(0.0, "V") == "0 V"
+    assert format_si(-0.2, "V") == "−200 mV"  # sign preserved, engineering prefix
+
+
+def test_results_table_shows_node_voltages_and_si_units():
+    with app.test_client() as client:
+        html = client.post("/calculate", data=VALID).get_data(as_text=True)
+    for symbol in ("V<sub>B</sub>", "V<sub>E</sub>", "V<sub>C</sub>", "V<sub>CE</sub>"):
+        assert symbol in html
+    assert "µA" in html          # IB ของค่าตั้งต้นต้องเป็น µA
+    assert "1.999" in html       # VB = VE + VBE
+    assert "5.954" in html       # VC = VCC − IC·RC
 
 
 if __name__ == "__main__":

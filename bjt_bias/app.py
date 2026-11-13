@@ -49,6 +49,50 @@ def _trim(number: float) -> str:
     frac = frac.rstrip("0")
     return f"{whole}.{frac}" if frac else whole
 
+
+# Engineering prefixes, largest first. The tuple is scanned for the first
+# factor that keeps the magnitude at or above 1.
+SI_PREFIXES = (
+    (1e9, "G"),
+    (1e6, "M"),
+    (1e3, "k"),
+    (1.0, ""),
+    (1e-3, "m"),
+    (1e-6, "µ"),
+    (1e-9, "n"),
+    (1e-12, "p"),
+)
+
+
+@app.template_filter("si")
+def format_si(value: object, unit: str) -> str:
+    """Format a value with an SI engineering prefix and up to 3 decimals.
+
+    ``12.298e-6`` A becomes ``12.298 µA``; zero and non-finite values fall
+    back to the base unit / an em dash. Negative values keep their sign but
+    use the Unicode minus (U+2212) for typographic consistency.
+    """
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(number):
+        return "—"
+    if number == 0:
+        return f"0 {unit}"
+
+    magnitude = abs(number)
+    factor, prefix = SI_PREFIXES[-1]
+    for candidate_factor, candidate_prefix in SI_PREFIXES:
+        if magnitude / candidate_factor >= 1:
+            factor, prefix = candidate_factor, candidate_prefix
+            break
+
+    scaled = f"{number / factor:.3f}".rstrip("0").rstrip(".")
+    if scaled.startswith("-"):
+        scaled = "−" + scaled[1:]
+    return f"{scaled} {prefix}{unit}"
+
 #: Default values used when the page loads via GET /
 DEFAULTS = {
     "vcc": "12",
