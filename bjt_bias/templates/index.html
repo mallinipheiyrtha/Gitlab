@@ -42,7 +42,7 @@
         /* --- Top bar --- */
         .topbar { display: flex; align-items: center; gap: 16px; padding: 4px 4px 20px; }
         .chip-icon { width: 56px; height: 56px; color: var(--teal); flex: none; }
-        .topbar h1 { margin: 0; font-size: 30px; line-height: 1.2; letter-spacing: 0.2px; }
+        .topbar h1 { margin: 0; font-size: clamp(22px, 2.3vw, 30px); line-height: 1.2; letter-spacing: 0.2px; }
         .topbar .subtitle { margin: 3px 0 0; color: var(--muted); font-size: 16px; }
 
         .course-badge {
@@ -194,6 +194,19 @@
         .region-cutoff { background: var(--bad-bg); color: var(--bad-ink); border-color: var(--bad-border); }
 
         .region-warning { margin: 8px 0 0; font-size: 13.5px; color: #9a3412; }
+
+        .results-placeholder {
+            display: grid;
+            place-items: center;
+            min-height: 160px;
+            margin-top: 4px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 16px;
+            color: #64748b;
+            font-size: 13.5px;
+            text-align: center;
+        }
 
         .check-box {
             margin-top: 16px;
@@ -470,6 +483,19 @@
                     </p>
                     <p>ความแตกต่างของ IC: {{ "%.2e" % analysis.comparison.delta_ic_a }} A</p>
                     <p>ความแตกต่างของ VCE: {{ "%.3f" % analysis.comparison.delta_vce_v }} V</p>
+                </div>
+            </section>
+            {% else %}
+            <section class="card results-card-empty">
+                <div class="card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path>
+                    </svg>
+                    <h2>DC Bias Results</h2>
+                </div>
+                <div class="results-placeholder">
+                    กรอกพารามิเตอร์แล้วกด “คำนวณ DC Bias” เพื่อดูผลลัพธ์
                 </div>
             </section>
             {% endif %}
