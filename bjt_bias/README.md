@@ -82,7 +82,8 @@ py -m venv .venv
 ### ตัวอย่างค่าตั้งต้น
 - ใส่ค่า: `VCC=12, R1=47000, R2=10000, RC=4700, RE=1000, beta=100, VBE=0.7`
 - ผลลัพธ์คาดหวัง:
-  - $I_B \approx 0.013\text{ mA}$
+  - $V_B \approx 1.999\text{ V}$, $V_E \approx 1.299\text{ V}$, $V_C \approx 5.954\text{ V}$
+  - $I_B \approx 12.863\ \mu\text{A}$
   - $I_C \approx 1.286\text{ mA}$
   - $I_E \approx 1.299\text{ mA}$
   - $V_{CE} \approx 4.655\text{ V}$

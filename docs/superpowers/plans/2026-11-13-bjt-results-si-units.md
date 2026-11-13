@@ -114,7 +114,7 @@ def test_format_si_filter():
     assert format_si(1.286e-3, "A") == "1.286 mA"
     assert format_si(1.5, "A") == "1.5 A"
     assert format_si(0.0, "V") == "0 V"
-    assert format_si(-0.2, "V") == "−0.2 V"
+    assert format_si(-0.2, "V") == "−200 mV"  # แก้ตาม ledger: คงอัลกอริทึม prefix มาตรฐาน
 
 
 def test_results_table_shows_node_voltages_and_si_units():

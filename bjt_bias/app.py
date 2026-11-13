@@ -82,11 +82,25 @@ def format_si(value: object, unit: str) -> str:
         return f"0 {unit}"
 
     magnitude = abs(number)
-    factor, prefix = SI_PREFIXES[-1]
-    for candidate_factor, candidate_prefix in SI_PREFIXES:
+    index = len(SI_PREFIXES) - 1
+    for i, (candidate_factor, _) in enumerate(SI_PREFIXES):
         if magnitude / candidate_factor >= 1:
-            factor, prefix = candidate_factor, candidate_prefix
+            index = i
             break
+
+    # Rounding can push the mantissa up to 1000; step to the next larger
+    # prefix so the mantissa stays in 1–999 (the same class of bug
+    # format_ohm already guards against).
+    while index > 0:
+        factor, prefix = SI_PREFIXES[index]
+        if abs(round(number / factor, 3)) < 1000:
+            break
+        index -= 1
+
+    factor, prefix = SI_PREFIXES[index]
+    if index == 0 and abs(round(number / factor, 3)) >= 1000:
+        # No larger prefix exists (G); fall back to the base unit.
+        factor, prefix = 1.0, ""
 
     scaled = f"{number / factor:.3f}".rstrip("0").rstrip(".")
     if scaled.startswith("-"):

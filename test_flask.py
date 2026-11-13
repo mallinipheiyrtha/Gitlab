@@ -203,14 +203,34 @@ def test_format_si_filter():
     assert format_si(-0.2, "V") == "−200 mV"  # sign preserved, engineering prefix
 
 
+def test_format_si_never_shows_four_digit_mantissa():
+    from bjt_bias.app import format_si
+
+    assert format_si(0.9999999, "A") == "1 A"
+    assert format_si(0.0009999999, "A") == "1 mA"
+    assert format_si(999.9996, "V") == "1 kV"
+    assert format_si(-999.9996, "V") == "−1 kV"
+
+
 def test_results_table_shows_node_voltages_and_si_units():
     with app.test_client() as client:
         html = client.post("/calculate", data=VALID).get_data(as_text=True)
     for symbol in ("V<sub>B</sub>", "V<sub>E</sub>", "V<sub>C</sub>", "V<sub>CE</sub>"):
         assert symbol in html
-    assert "µA" in html          # IB ของค่าตั้งต้นต้องเป็น µA
-    assert "1.999" in html       # VB = VE + VBE
-    assert "5.954" in html       # VC = VCC − IC·RC
+    assert "12.863 µA" in html    # IB ต้องเป็น µA ไม่ใช่ 0.013 mA
+    assert "1.999" in html        # VB = VE + VBE
+    assert "5.954" in html        # VC = VCC − IC·RC
+
+
+def test_results_table_cutoff_region():
+    with app.test_client() as client:
+        html = client.post("/calculate", data={**VALID, "vbe": "11.9"}).get_data(
+            as_text=True
+        )
+    assert "คัตออฟ" in html
+    assert ">0 V</td>" in html       # VE = 0
+    assert ">12 V</td>" in html      # VC = VCE = VCC
+    assert ">0 A</td>" in html       # IB = IC = IE = 0
 
 
 if __name__ == "__main__":

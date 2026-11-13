@@ -8,6 +8,7 @@ from bjt_bias.bjt import (
     parse_inputs,
     FIELDS,
     solve_thevenin,
+    solve_numerical,
     compare_results,
     analyze,
     BiasResult,
@@ -159,9 +160,10 @@ def test_saturation_region():
 # Node-voltage tests (results SI-units plan, Task 1)
 # ---------------------------------------------------------------------------
 
-def test_node_voltages_follow_equations_active():
+@pytest.mark.parametrize("solver", [solve_thevenin, solve_numerical])
+def test_node_voltages_follow_equations_active(solver):
     inp, _ = parse_inputs(VALID)
-    r = solve_thevenin(inp)
+    r = solver(inp)
     assert r.region == "active"
     assert r.ve_v == pytest.approx(r.ie_a * inp.re)
     assert r.vb_v == pytest.approx(r.ve_v + inp.vbe)
@@ -169,18 +171,20 @@ def test_node_voltages_follow_equations_active():
     assert r.vce_v == pytest.approx(r.vc_v - r.ve_v)
 
 
-def test_node_voltages_cutoff():
+@pytest.mark.parametrize("solver", [solve_thevenin, solve_numerical])
+def test_node_voltages_cutoff(solver):
     inp, _ = parse_inputs({**VALID, "vbe": "11.9"})  # VTH - VBE < 0 → IB <= 0
-    r = solve_thevenin(inp)
+    r = solver(inp)
     assert r.region == "cutoff"
     assert r.ve_v == 0.0
     assert r.vc_v == pytest.approx(inp.vcc)
     assert r.vb_v == pytest.approx(r.vbb_v)
 
 
-def test_node_voltages_saturation():
+@pytest.mark.parametrize("solver", [solve_thevenin, solve_numerical])
+def test_node_voltages_saturation(solver):
     inp, _ = parse_inputs({**VALID, "rc": "100000"})
-    r = solve_thevenin(inp)
+    r = solver(inp)
     assert r.region == "saturation"
     assert r.vce_v == pytest.approx(r.vc_v - r.ve_v)
 
