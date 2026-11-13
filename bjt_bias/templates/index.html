@@ -2,201 +2,419 @@
 <html lang="th">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BJT Common-Emitter DC Bias Calculator</title>
     <style>
-        /* --- ระบบสี (Color System) --- */
+        /* --- Color & type tokens --- */
         :root {
-            --bg-app: #faf8f5;
-            --bg-card: #ffffff;
-            --bg-input: #ffffff;
-            --muted: #6b6b6b;
-            --text-primary: #212121;
-            --text-secondary: #757575;
-            --accent: #b71c1c;
-            --accent-hover: #a01414;
-            --success: #2e7d32;
-            --warning: #f57c00;
-            --info: #1565c0;
-            --border: #e0e0e0;
-            --border-focus: #b71c1c;
-            --result-active: #e8f5e9;
-            --result-saturation: #fff3e0;
-            --result-cutoff: #ffebee;
+            --teal: #0f766e;
+            --teal-dark: #115e59;
+            --blue-soft: #e8f1fb;
+            --blue-border: #cfe1f7;
+            --blue-ink: #1e3a8a;
+            --bg: #f5f8fc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --ink: #0f172a;
+            --muted: #475569;
+            --ok-bg: #dcfce7;
+            --ok-ink: #15803d;
+            --ok-border: #bbf7d0;
+            --warn-bg: #ffedd5;
+            --warn-ink: #c2410c;
+            --warn-border: #fed7aa;
+            --bad-bg: #fee2e2;
+            --bad-ink: #b91c1c;
+            --bad-border: #fecaca;
         }
 
-        /* --- Reset & Base --- */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; }
+
         body {
-            font: 14px/1.6 "Segoe UI", "Prompt", "TH SarabunPSK", system-ui, sans-serif;
-            background: var(--bg-app);
-            color: var(--text-primary);
-            min-height: 100vh;
             margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 15px/1.5 system-ui, "Segoe UI", "Sarabun", "Noto Sans Thai", sans-serif;
         }
+
+        .app { max-width: 1400px; margin: 0 auto; padding: 18px 22px 30px; }
+
+        /* --- Top bar --- */
+        .topbar { display: flex; align-items: center; gap: 16px; padding: 4px 4px 20px; }
+        .chip-icon { width: 56px; height: 56px; color: var(--teal); flex: none; }
+        .topbar h1 { margin: 0; font-size: 30px; line-height: 1.2; letter-spacing: 0.2px; }
+        .topbar .subtitle { margin: 3px 0 0; color: var(--muted); font-size: 16px; }
+
+        .course-badge {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 300px;
+            padding: 10px 16px;
+            background: var(--blue-soft);
+            border: 1px solid var(--blue-border);
+            border-radius: 12px;
+            color: var(--blue-ink);
+            font-size: 14px;
+            line-height: 1.35;
+        }
+        .course-badge svg { width: 26px; height: 26px; flex: none; color: var(--teal); }
 
         /* --- Layout --- */
-        .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
-        .container { max-width: 720px; width: 100%; }
-
-        /* --- Header --- */
-        h1 { text-align: center; margin-bottom: 0.5rem; font-size: 1.8rem; color: var(--accent); letter-spacing: 0.5px; }
-        p.subtitle { text-align: center; color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
-
-        /* --- Form Card --- */
-        .card { background: var(--bg-card); border-radius: 12px; padding: 2.5rem 2rem; width: 100%; max-width: 480px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .card h2 { text-align: center; margin-bottom: 1.8rem; font-size: 1.3rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; }
-        .form-group { margin-bottom: 1.3rem; }
-        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.87rem; color: var(--text-secondary); }
-        .form-group input {
-            width: 100%; padding: 0.85rem 1rem; font-size: 1rem; color: var(--text-primary);
-            background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; transition: border-color 0.2s, box-shadow 0.2s;
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr 1fr;
+            gap: 16px;
+            align-items: start;
         }
-        .form-group input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(183,28,28,0.12); }
-        .form-group small { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.75rem; }
 
-        /* --- Buttons --- */
-        .btn-submit {
-            width: 100%; padding: 0.9rem 1rem; margin-top: 0.5rem; font-size: 1rem; font-weight: 600;
-            color: #fff; background: var(--accent); border: none; border-radius: 8px; cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
-        .btn-submit:hover { background: var(--accent-hover); transform: translateY(-1px); }
-        .btn-submit:active { background: var(--accent-hover); transform: translateY(1px); }
 
-        /* --- Results Card --- */
-        .results-card { background: var(--bg-card); border-radius: 12px; padding: 2rem 1.5rem; margin-top: 2rem; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: none; }
-        .results-card.visible { display: block; }
-        .result-section { margin-bottom: 2rem; }
-        .result-section:last-child { margin-bottom: 0; }
-        .result-title { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.8rem; }
-        .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .result-item { padding: 0.6rem 0; border-top: 1px solid var(--border); }
-        .result-label { font-size: 0.75rem; color: var(--muted); }
-        .result-value { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
-        .result-unit { font-size: 0.75rem; color: var(--muted); margin-left: 0.3rem; }
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 16px;
+            color: var(--teal);
+        }
+        .card-head svg { width: 24px; height: 24px; flex: none; }
+        .card-head h2 { margin: 0; font-size: 19px; font-weight: 700; }
 
-        /* Region Badge */
-        .badge { display: inline-block; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.3px; }
-        .badge-active { background: #e8f5e9; color: var(--success); }
-        .badge-saturation { background: #fff3e0; color: var(--warning); }
-        .badge-cutoff { background: #ffebee; color: #c62828; }
+        /* --- Input card --- */
+        .field-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 96px 58px;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .field-label { font-size: 15px; }
+        .field-label .var { font-style: italic; font-family: "Cambria Math", Georgia, serif; }
+        .field-label sub { font-size: 0.72em; }
+        .field-input {
+            width: 100%;
+            height: 38px;
+            padding: 0 10px;
+            font: inherit;
+            font-size: 15px;
+            color: var(--ink);
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+        }
+        .field-input:focus-visible {
+            outline: 2px solid var(--teal);
+            outline-offset: 1px;
+            border-color: var(--teal);
+        }
+        .unit {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .field-error {
+            grid-column: 1 / -1;
+            margin: 0;
+            color: var(--bad-ink);
+            font-size: 12.5px;
+        }
 
-        /* Cross-check */
-        .cross-check { background: #fafafa; border-radius: 10px; padding: 1.2rem; margin-top: 1.5rem; border: 1px solid var(--border); }
-        .cross-check h3 { font-size: 0.85rem; color: var(--accent); margin: 0 0 0.8rem 0; }
-        .cross-check p { margin: 0.3rem 0; font-size: 0.9rem; }
-        .cross-check .agrees { color: var(--success); font-weight: 500; }
-        .cross-check .disagrees { color: var(--warning); font-weight: 500; }
+        .btn-calculate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            margin-top: 6px;
+            padding: 12px 14px;
+            font: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            background: var(--teal);
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .btn-calculate:hover { background: var(--teal-dark); }
+        .btn-calculate:focus-visible { outline: 3px solid #99f6e4; outline-offset: 2px; }
+        .btn-calculate svg { width: 20px; height: 20px; }
+
+        /* --- Circuit card --- */
+        .circuit-placeholder {
+            display: grid;
+            place-items: center;
+            min-height: 320px;
+            margin-top: 4px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            color: #64748b;
+            font-size: 13.5px;
+        }
+
+        /* --- Results card --- */
+        .results-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+        .results-table th,
+        .results-table td { padding: 9px 10px; text-align: left; }
+        .results-table tbody tr:nth-child(odd) { background: #eef4fb; }
+        .results-table th { font-weight: 500; }
+        .results-table th .var { font-style: italic; font-family: "Cambria Math", Georgia, serif; }
+        .results-table th sub { font-size: 0.72em; }
+        .results-table td.value {
+            text-align: right;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .region-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            padding: 9px 14px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .region-active { background: var(--ok-bg); color: var(--ok-ink); border-color: var(--ok-border); }
+        .region-saturation { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-border); }
+        .region-cutoff { background: var(--bad-bg); color: var(--bad-ink); border-color: var(--bad-border); }
+
+        .region-warning { margin: 8px 0 0; font-size: 13.5px; color: #9a3412; }
+
+        .check-box {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-size: 13.5px;
+        }
+        .check-box[data-state="agrees"] { background: #f0fdf4; border-color: var(--ok-border); }
+        .check-box[data-state="disagrees"] { background: #fff7ed; border-color: var(--warn-border); }
+        .check-box h3 { margin: 0 0 8px; font-size: 14.5px; color: var(--teal); }
+        .check-box p { margin: 3px 0; }
+        .check-box .state { font-weight: 700; }
+        .check-box[data-state="agrees"] .state { color: var(--ok-ink); }
+        .check-box[data-state="disagrees"] .state { color: var(--warn-ink); }
+
+        /* --- Goal bar --- */
+        .goal-bar {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: 18px;
+            padding: 14px 18px;
+            background: var(--blue-soft);
+            border: 1px solid var(--blue-border);
+            border-radius: 12px;
+        }
+        .goal-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 18px;
+            border-right: 1px solid var(--blue-border);
+            color: var(--blue-ink);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .goal-label svg { width: 26px; height: 26px; color: var(--teal); }
+        .goal-bar p { margin: 0; font-size: 14px; color: #1e293b; }
 
         /* --- Responsive --- */
-        @media (max-width: 480px) { .result-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1100px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .app { padding: 14px 14px 24px; }
+            .topbar { flex-wrap: wrap; }
+            .topbar h1 { font-size: 24px; }
+            .course-badge { margin-left: 0; max-width: none; }
+            .goal-bar { flex-direction: column; align-items: flex-start; }
+            .goal-label { border-right: none; padding-right: 0; }
+        }
     </style>
 </head>
 <body>
-    <div class="page">
-        <div class="container">
-            <h1>BJT Common-Emitter DC Bias</h1>
-            <p class="subtitle">คำนวณจุดทำงานกระแสตรงของวงจรไบแอสรูปแบบแบ่งแรงดัน</p>
-
-            <div class="card">
-                <h2>อินพุต (DC Bias)</h2>
-                <form method="post" action="/calculate">
-                    <div class="form-group">
-                        <label for="vcc">VCC (V)</label>
-                        <input type="text" name="vcc" value="{{ values.vcc }}" required>
-                        <small>แรงดันไฟฟ้าจ่าย</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="r1">R1 (Ω)</label>
-                        <input type="text" name="r1" value="{{ values.r1 }}" required>
-                        <small>ความต้านทานที่เชื่อมต่อกับ VCC</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="r2">R2 (Ω)</label>
-                        <input type="text" name="r2" value="{{ values.r2 }}" required>
-                        <small>ความต้านทานที่เชื่อมต่อกับ GND</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="rc">RC (Ω)</label>
-                        <input type="text" name="rc" value="{{ values.rc }}" required>
-                        <small>ความต้านทานโหลดที่ขั้วคอลเลกเตอร์</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="re">RE (Ω)</label>
-                        <input type="text" name="re" value="{{ values.re }}" required>
-                        <small>ความต้านทานเสมือนที่ขั้วอีมิเตอร์</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="beta">beta (β)</label>
-                        <input type="text" name="beta" value="{{ values.beta }}" required>
-                        <small>ค่าอินพุตสัมพันธ์ของทรานซิสเตอร์</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="vbe">VBE (V)</label>
-                        <input type="text" name="vbe" value="{{ values.vbe }}" required>
-                        <small>แรงดันขั้วฐาน-อีมิเตอร์</small>
-                    </div>
-                    <button type="submit" class="btn-submit">คำนวณ</button>
-                </form>
+    <div class="app">
+        <header class="topbar">
+            <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                <rect x="10" y="10" width="4" height="4" rx="1"></rect>
+                <path d="M9 3v4M12 3v4M15 3v4M9 17v4M12 17v4M15 17v4M3 9h4M3 12h4M3 15h4M17 9h4M17 12h4M17 15h4"></path>
+            </svg>
+            <div>
+                <h1>Lab 02: BJT DC Bias Web App</h1>
+                <p class="subtitle">ENG29 2121 – Common Emitter (Voltage Divider Bias)</p>
             </div>
+            <div class="course-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 8 5 12l4 4M15 8l4 4-4 4"></path>
+                </svg>
+                <span>Computer Programming for Electrical Engineers</span>
+            </div>
+        </header>
+
+        {% set fields = [
+            ("vcc", "V", "CC", "Supply Voltage", "V"),
+            ("r1", "R", "1", "Upper Divider", "Ω"),
+            ("r2", "R", "2", "Lower Divider", "Ω"),
+            ("rc", "R", "C", "Collector Resistor", "Ω"),
+            ("re", "R", "E", "Emitter Resistor", "Ω"),
+            ("beta", "β", "", "Current Gain", "–"),
+            ("vbe", "V", "BE", "Base-Emitter Voltage", "V"),
+        ] %}
+
+        {% set region_labels = {
+            "active": "แอกทีฟ (Active)",
+            "saturation": "แซทเทอเรชัน (Saturation)",
+            "cutoff": "คัตออฟ (Cutoff)",
+        } %}
+
+        <main class="grid">
+            <section class="card input-card">
+                <div class="card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 8.8a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
+                    </svg>
+                    <h2>Input Parameters</h2>
+                </div>
+
+                <form method="post" action="/calculate">
+                    {% for name, sym, sub, desc, unit in fields %}
+                    <div class="field-row">
+                        <label class="field-label" for="{{ name }}">
+                            <span class="var">{{ sym }}{% if sub %}<sub>{{ sub }}</sub>{% endif %}</span>
+                            ({{ desc }})
+                        </label>
+                        <input class="field-input" type="text" id="{{ name }}" name="{{ name }}"
+                               value="{{ values[name] }}" required
+                               {% if errors[name] %}aria-describedby="{{ name }}-error"{% endif %}>
+                        <span class="unit" aria-hidden="true">{{ unit }}</span>
+                        {% if errors[name] %}
+                        <p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn-calculate">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="5" y="3" width="14" height="18" rx="2"></rect>
+                            <path d="M8 7h8M8 11h2M12 11h2M16 11h.01M8 15h2M12 15h2M16 15h.01"></path>
+                        </svg>
+                        คำนวณ DC Bias
+                    </button>
+                </form>
+            </section>
+
+            <section class="card circuit-card">
+                <div class="card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="6" cy="6" r="2.2"></circle>
+                        <circle cx="18" cy="6" r="2.2"></circle>
+                        <circle cx="12" cy="18" r="2.2"></circle>
+                        <path d="M8.2 6h7.6M7 8l4 8M17 8l-4 8"></path>
+                    </svg>
+                    <h2>Circuit: Common-Emitter Amplifier</h2>
+                </div>
+                <div class="circuit-placeholder">แผนภาพวงจร</div>
+            </section>
 
             {% if analysis is not none %}
-            <div class="results-card visible">
-                <div class="result-section">
-                    <div class="result-title">ผลลัพธ์</div>
-                    <div class="result-grid">
-                        <div class="result-item">
-                            <span class="result-label">VBB</span>
-                            <span class="result-value">{{ "%.3f" % analysis.primary.vbb_v }} V</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">RB</span>
-                            <span class="result-value">{{ "%.1f" % analysis.primary.rb_ohm }} Ω</span>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-item">
-                            <span class="result-label">IB</span>
-                            <span class="result-value">{{ "%.3f" % (analysis.primary.ib_a * 1000) }} mA</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">IC</span>
-                            <span class="result-value">{{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA</span>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-item">
-                            <span class="result-label">IE</span>
-                            <span class="result-value">{{ "%.3f" % (analysis.primary.ie_a * 1000) }} mA</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">VCE</span>
-                            <span class="result-value">{{ "%.3f" % analysis.primary.vce_v }} V</span>
-                        </div>
-                    </div>
+            <section class="card results-card" id="results">
+                <div class="card-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path>
+                    </svg>
+                    <h2>DC Bias Results</h2>
                 </div>
 
-                <div class="result-section">
-                    <div class="result-title">ย่านการทำงาน</div>
-                    <span class="badge badge-{{ analysis.primary.region }}">{{ analysis.primary.region|capitalize }}</span>
-                    {% if analysis.primary.warning %}
-                    <p class="note" style="color: var(--warning); font-size: 0.85rem; margin-top: 0.4rem;">{{ analysis.primary.warning }}</p>
-                    {% endif %}
-                </div>
+                <table class="results-table">
+                    <tbody>
+                        <tr>
+                            <th scope="row"><span class="var">V<sub>BB</sub></span></th>
+                            <td class="value">{{ "%.3f" % analysis.primary.vbb_v }} V</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">R<sub>B</sub></span></th>
+                            <td class="value">{{ "%.1f" % analysis.primary.rb_ohm }} Ω</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>B</sub></span></th>
+                            <td class="value">{{ "%.3f" % (analysis.primary.ib_a * 1000) }} mA</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>C</sub></span></th>
+                            <td class="value">{{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">I<sub>E</sub></span></th>
+                            <td class="value">{{ "%.3f" % (analysis.primary.ie_a * 1000) }} mA</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><span class="var">V<sub>CE</sub></span></th>
+                            <td class="value">{{ "%.3f" % analysis.primary.vce_v }} V</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-                <div class="cross-check">
+                <span class="region-badge region-{{ analysis.primary.region }}">
+                    {{ region_labels.get(analysis.primary.region, analysis.primary.region) }}
+                </span>
+                {% if analysis.primary.warning %}
+                <p class="region-warning">{{ analysis.primary.warning }}</p>
+                {% endif %}
+
+                <div class="check-box" data-state="{{ 'agrees' if analysis.comparison.agrees else 'disagrees' }}">
                     <h3>การตรวจสอบข้าม</h3>
                     <p>แบบจำลอง Thevenin: IC = {{ "%.3f" % (analysis.primary.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.primary.vce_v }} V</p>
                     <p>แบบจำลองเชิงตัวเลข: IC = {{ "%.3f" % (analysis.check.ic_a * 1000) }} mA, VCE = {{ "%.3f" % analysis.check.vce_v }} V</p>
-                    <p class="{{ "agrees" if analysis.comparison.agrees else "disagrees" }}">
+                    <p class="state">
                         {% if analysis.comparison.agrees %}ผลลัพธ์ตรงกัน (Agrees){% else %}ผลลัพธ์ไม่ตรงกัน (Disagrees){% endif %}
                     </p>
                     <p>ความแตกต่างของ IC: {{ "%.2e" % analysis.comparison.delta_ic_a }} A</p>
                     <p>ความแตกต่างของ VCE: {{ "%.3f" % analysis.comparison.delta_vce_v }} V</p>
                 </div>
-            </div>
+            </section>
             {% endif %}
-        </div>
+        </main>
+
+        <footer class="goal-bar">
+            <div class="goal-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <circle cx="12" cy="12" r="1"></circle>
+                </svg>
+                Week 2 Goal
+            </div>
+            <p>เป้าหมายของแล็บ: สร้างเว็บแอป Flask ที่รับพารามิเตอร์ของวงจร แล้วคำนวณไบแอส DC
+               ของ common-emitter amplifier แบบแบ่งแรงดัน (V<sub>BB</sub>, R<sub>B</sub>,
+               I<sub>B</sub>, I<sub>C</sub>, I<sub>E</sub>, V<sub>CE</sub>) พร้อมแสดงผลลัพธ์</p>
+        </footer>
     </div>
 </body>
 </html>
