@@ -160,6 +160,7 @@
         .wire path,
         .wire polyline { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .q-body { fill: #e8f1fb; stroke: var(--ink); stroke-width: 2; }
+        .q-bar { stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; fill: none; }
         .node { fill: var(--ink); stroke: none; }
         .lbl { fill: var(--ink); font-family: "Segoe UI", "Sarabun", system-ui, sans-serif; font-size: 13px; }
         .lbl.strong { font-weight: 600; }
@@ -352,22 +353,28 @@
                 <figure class="circuit-figure">
                     <svg viewBox="0 0 380 440" role="img" aria-labelledby="circuit-title">
                         <title id="circuit-title">Voltage-divider bias circuit</title>
+
+                        <!-- Transistor body: painted first so the symbol sits on top -->
+                        <circle id="q-body" class="q-body" cx="248" cy="225" r="30"></circle>
+
                         <g class="wire">
                             <!-- VCC rail and collector branch -->
                             <path d="M262 42 H150 V92"></path>
                             <path d="M262 42 V92"></path>
-                            <path d="M262 177 V197"></path>
-                            <path d="M262 197 L232 216"></path>
-                            <path d="M232 236 L262 255 V272"></path>
-                            <path d="M262 255 V272"></path>
+                            <path d="M262 177 V198"></path>
+                            <path id="q-collector" d="M262 198 L232 215"></path>
+                            <path id="q-emitter" d="M232 235 L262 252"></path>
+                            <path d="M262 252 V272"></path>
                             <path d="M262 357 V378"></path>
                             <!-- Base branch -->
                             <path d="M150 177 V226"></path>
                             <path d="M150 226 H232"></path>
                             <path d="M150 226 V252"></path>
-                            <path d="M232 208 V244"></path>
                             <path d="M150 337 V378"></path>
                         </g>
+
+                        <!-- Base bar of the transistor symbol -->
+                        <path id="q-bar" class="q-bar" d="M232 207 V243"></path>
 
                         <!-- Resistors -->
                         <g class="wire">
@@ -377,9 +384,8 @@
                             <polyline points="262,272 251,282 273,294 251,306 273,318 251,330 273,342 262,357"></polyline>
                         </g>
 
-                        <!-- Transistor -->
-                        <circle class="q-body" cx="245" cy="225" r="30"></circle>
-                        <polygon class="node" points="262,255 251,255 258,245"></polygon>
+                        <!-- Emitter arrow and connection nodes -->
+                        <polygon class="node" points="262,252 249.5,251.8 255.3,241.4"></polygon>
                         <circle class="node" cx="262" cy="42" r="3.5"></circle>
                         <circle class="node" cx="150" cy="226" r="3.5"></circle>
 

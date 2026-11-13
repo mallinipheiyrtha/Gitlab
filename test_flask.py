@@ -174,6 +174,22 @@ def test_get_renders_circuit_values():
     assert "22 kΩ" not in html  # กันการ hard-code ค่าจากภาพ mockup
 
 
+def test_transistor_symbol_drawn_on_top_of_body():
+    """SVG paints in document order: the body must come before the symbol."""
+    with app.test_client() as client:
+        html = client.get("/").get_data(as_text=True)
+    body = html.index('id="q-body"')
+    for part in ('id="q-bar"', 'id="q-collector"', 'id="q-emitter"'):
+        assert part in html, f"missing {part}"
+        assert body < html.index(part), f"{part} is painted before q-body"
+
+
+def test_format_ohm_rounds_before_choosing_unit():
+    from bjt_bias.app import format_ohm
+
+    assert format_ohm("999999.5") == "1 MΩ"
+
+
 if __name__ == "__main__":
     test_get_index()
     test_post_calculate_valid()

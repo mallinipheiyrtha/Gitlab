@@ -25,7 +25,9 @@ def format_ohm(raw: object) -> str:
     """Format a raw resistance value for display in the circuit diagram.
 
     Values come straight from the form, so they may be missing, empty, or
-    non-numeric; those render as an em dash instead of raising.
+    non-numeric; those render as an em dash instead of raising. The value is
+    rounded to six significant digits *before* the unit is chosen, so
+    ``999999.5`` becomes ``1 MΩ`` instead of ``1000 kΩ``.
     """
     try:
         value = float(raw)  # type: ignore[arg-type]
@@ -33,11 +35,19 @@ def format_ohm(raw: object) -> str:
         return "—"
     if not math.isfinite(value):
         return "—"
-    if value >= 1_000_000:
-        return f"{value / 1_000_000:g} MΩ"
-    if value >= 1_000:
-        return f"{value / 1_000:g} kΩ"
-    return f"{value:g} Ω"
+    rounded = float(f"{value:.6g}")
+    if rounded >= 1_000_000:
+        return f"{_trim(rounded / 1_000_000)} MΩ"
+    if rounded >= 1_000:
+        return f"{_trim(rounded / 1_000)} kΩ"
+    return f"{_trim(rounded)} Ω"
+
+
+def _trim(number: float) -> str:
+    """Drop trailing zeros in the fractional part without touching the integer."""
+    whole, frac = f"{number:.6f}".split(".")
+    frac = frac.rstrip("0")
+    return f"{whole}.{frac}" if frac else whole
 
 #: Default values used when the page loads via GET /
 DEFAULTS = {
