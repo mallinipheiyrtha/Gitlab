@@ -97,7 +97,7 @@ def test_get_layout_sections():
     assert "ENG29 2121" in html
     assert "Input Parameters" in html
     assert "Circuit: Common-Emitter Amplifier" in html
-    assert "Week 2 Goal" in html
+    assert "Week 2 Goal" not in html  # แถบเป้าหมายถูกเอาออกตามที่ผู้ใช้ขอ
 
 
 def test_post_invalid_r1_shows_error_and_keeps_value():
