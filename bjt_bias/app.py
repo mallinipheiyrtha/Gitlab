@@ -9,11 +9,13 @@ import math
 from flask import Flask, render_template, request
 
 from .bjt import (
-    FIELDS,
+    MODE_FIELDS,
+    MODES,
     ValidationError,
     parse_inputs,
-    analyze,
-    BiasInput,
+    analyze_divider,
+    analyze_fixed,
+    analyze_emitter,
 )
 
 
@@ -107,7 +109,7 @@ def format_si(value: object, unit: str) -> str:
         scaled = "−" + scaled[1:]
     return f"{scaled} {prefix}{unit}"
 
-#: Default values used when the page loads via GET /
+#: Default values used when the page loads via GET / (voltage divider).
 DEFAULTS = {
     "vcc": "12",
     "r1": "47000",
@@ -118,15 +120,41 @@ DEFAULTS = {
     "vbe": "0.7",
 }
 
+#: Per-mode defaults so switching circuits shows sensible starting values.
+MODE_DEFAULTS = {
+    "divider": DEFAULTS,
+    "fixed": {
+        "vcc": "12",
+        "rb": "1000000",
+        "rc": "2200",
+        "beta": "100",
+        "vbe": "0.7",
+    },
+    "emitter": {
+        "vcc": "12",
+        "rb": "1000000",
+        "rc": "2200",
+        "re": "1000",
+        "beta": "100",
+        "vbe": "0.7",
+    },
+}
+
 
 @app.get("/")
 def index():
-    """Render the form page (no results yet)."""
+    """Render the form page for the selected mode (no results yet)."""
+    mode = request.args.get("mode", "divider")
+    errors = {}
+    if mode not in MODES:
+        errors["mode"] = "โหมดไบอัสไม่ถูกต้อง"
+        mode = "divider"
     return render_template(
         "index.html",
-        values=DEFAULTS,
-        errors={},
+        values=MODE_DEFAULTS[mode],
+        errors=errors,
         analysis=None,
+        mode=mode,
     )
 
 
@@ -134,11 +162,25 @@ def index():
 def calculate():
     """Process the form submission, validate, compute, and re‑render."""
 
-    # Collect raw string values from the form
-    raw_values = {name: request.form.get(name, "") for name in FIELDS}
+    mode = request.form.get("mode", "divider")
+    if mode not in MODES:
+        # Never guess a model for an unknown mode.
+        return (
+            render_template(
+                "index.html",
+                values=request.form.to_dict(),
+                errors={"mode": "โหมดไบอัสไม่ถูกต้อง"},
+                analysis=None,
+                mode="divider",
+            ),
+            400,
+        )
+
+    # Collect only the fields required by this circuit
+    raw_values = {name: request.form.get(name, "") for name in MODE_FIELDS[mode]}
 
     try:
-        bias_input, parse_err = parse_inputs(raw_values)
+        bias_input, parse_err = parse_inputs(raw_values, mode)
     except ValidationError as ve:
         # Re‑display the form with per‑field messages
         return render_template(
@@ -146,10 +188,27 @@ def calculate():
             values=raw_values,
             errors=ve.errors,
             analysis=None,
+            mode=mode,
         )
 
-    # All input is valid — perform the full engineering analysis
-    analysis = analyze(bias_input)  # {"primary": ..., "check": ..., "comparison": ...}
+    # All input is valid — select the model explicitly for this mode.
+    if mode == "divider":
+        analysis = analyze_divider(bias_input)
+    elif mode == "fixed":
+        analysis = analyze_fixed(bias_input)
+    elif mode == "emitter":
+        analysis = analyze_emitter(bias_input)
+    else:  # defensive: mode was validated above
+        return (
+            render_template(
+                "index.html",
+                values=raw_values,
+                errors={"mode": "โหมดไบอัสไม่ถูกต้อง"},
+                analysis=None,
+                mode="divider",
+            ),
+            400,
+        )
 
     # Pass the original values back so the form keeps what the user typed
     return render_template(
@@ -157,4 +216,5 @@ def calculate():
         values=raw_values,
         errors={},
         analysis=analysis,
+        mode=mode,
     )

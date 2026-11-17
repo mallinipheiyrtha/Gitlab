@@ -1,11 +1,17 @@
 """BJT Common-Emitter DC Bias calculator — engineering logic only.
 
 No Flask imports. All functions operate on BiasInput dataclass and return
-plain Python values. Two solver paths are provided:
-  1) solve_thevenin  — closed-form Thevenin equivalent (spec primary)
-  2) solve_numerical — bisection KCL check (independent verification)
+plain Python values. Three bias modes are supported (Lab 03):
 
-Both produce the same BiasResult shape; compare_results validates agreement.
+  divider — voltage-divider bias (Lab 02 behaviour, unchanged)
+      primary: solve_thevenin      check: solve_numerical
+  fixed   — fixed base bias
+      primary: solve_fixed_bias    check: none (no self-consistent loop)
+  emitter — emitter bias with a base resistor
+      primary: solve_emitter_bias  check: solve_numerical_emitter
+
+All solvers produce the same BiasResult shape; compare_results validates
+agreement between the closed-form and numerical paths where both exist.
 """
 
 from __future__ import annotations
@@ -49,6 +55,7 @@ class BiasInput:
     re: float
     beta: float
     vbe: float
+    rb: float = 0.0      # base resistor for fixed / emitter bias (Ω)
 
 
 @dataclass(frozen=True)
@@ -67,6 +74,22 @@ class BiasResult:
     region: str           # "active" | "saturation" | "cutoff"
     warning: Optional[str]  # Human-readable warning, or None
 
+    def as_lab_dict(self) -> dict[str, object]:
+        """Return the shared Lab 03 result dict.
+
+        Voltages are in volts and IC is in milliamps, matching the key names
+        suggested by the lab sheet (``vb_v``, ``ve_v``, ``vc_v``, ``vce_v``,
+        ``ic_ma``) plus the optional ``warning`` text.
+        """
+        return {
+            "vb_v": self.vb_v,
+            "ve_v": self.ve_v,
+            "vc_v": self.vc_v,
+            "vce_v": self.vce_v,
+            "ic_ma": self.ic_a * 1000.0,
+            "warning": self.warning,
+        }
+
 
 # ---------------------------------------------------------------------------
 # Field names used by the Flask form (must stay in sync with FIELDS)
@@ -75,6 +98,20 @@ class BiasResult:
 FIELDS: Tuple[str, ...] = (
     "vcc", "r1", "r2", "rc", "re", "beta", "vbe",
 )
+
+#: Bias modes supported by the app.  ``divider`` is the default so the
+#: Lab 02 form keeps working unchanged.
+MODES: Tuple[str, ...] = ("divider", "fixed", "emitter")
+
+#: Form fields required by each mode.  Only these are parsed and validated;
+#: fields that do not belong to the selected circuit are ignored.
+MODE_FIELDS: dict[str, Tuple[str, ...]] = {
+    "divider": FIELDS,
+    "fixed": ("vcc", "rb", "rc", "beta", "vbe"),
+    "emitter": ("vcc", "rb", "re", "rc", "beta", "vbe"),
+}
+
+MODE_ERROR = "โหมดไบอัสไม่ถูกต้อง"
 
 
 # ---------------------------------------------------------------------------
@@ -99,26 +136,33 @@ def _check_range(name: str, val: float, lo: float, hi: float, msg_lo: str, msg_h
 # Public validation entry point (used by solver, not by parse_inputs)
 # ---------------------------------------------------------------------------
 
-def validate_inputs(inp: BiasInput) -> dict[str, str]:
-    """Validate a BiasInput and return a dict of error messages keyed by field.
+def validate_inputs(inp: BiasInput, mode: str = "divider") -> dict[str, str]:
+    """Validate a BiasInput for the selected mode.
 
-    Returns empty dict if validation passes.
+    Returns a dict of error messages keyed by field (empty when valid).
     This function does NOT raise; callers should check the returned dict.
+    Only fields required by ``mode`` are checked, so a fixed-bias circuit is
+    not rejected for having no R1/R2/RE.
     """
+    if mode not in MODE_FIELDS:
+        return {"mode": MODE_ERROR}
+
     errors: dict[str, str] = {}
+    required = MODE_FIELDS[mode]
 
     # --- VCC --------------------------------------------------------------
     if inp.vcc <= 0:
         errors["vcc"] = "ต้องมากกว่า 0"
 
-    # --- R1, R2, RC, RE -------------------------------------------------
+    # --- Resistances used by this mode -----------------------------------
     for fname, fval in [
         ("r1", inp.r1),
         ("r2", inp.r2),
         ("rc", inp.rc),
         ("re", inp.re),
+        ("rb", inp.rb),
     ]:
-        if fval <= 0:
+        if fname in required and fval <= 0:
             errors[fname] = "ต้องมากกว่า 0"
 
     # --- beta -------------------------------------------------------------
@@ -146,23 +190,32 @@ def validate_inputs(inp: BiasInput) -> dict[str, str]:
 # Raw‑form parsing / conversion
 # ---------------------------------------------------------------------------
 
-def parse_inputs(raw: Mapping[str, object]) -> tuple[BiasInput, ValidationError]:
-    """Convert raw form values into a BiasInput, performing validation.
+def parse_inputs(
+    raw: Mapping[str, object],
+    mode: str = "divider",
+) -> tuple[BiasInput, ValidationError]:
+    """Convert raw form values into a BiasInput for the selected mode.
 
     Returns (bias_input, validation_error).  If validation passes,
     validation_error.errors is an empty dict; otherwise the function raises
     ValidationError.
 
+    Only the fields required by ``mode`` are read.  An unknown mode raises
+    ValidationError instead of silently falling back to divider bias.
+
     The function RAISES ValidationError when any error is found;
     callers should use ``try / except ValidationError``.
     """
+    if mode not in MODE_FIELDS:
+        raise ValidationError({"mode": MODE_ERROR})
+
     errors: dict[str, str] = {}
 
     # ------------------------------------------------------------------
-    # 1) Basic key presence & type coercion
+    # 1) Basic key presence & type coercion (mode-specific fields only)
     # ------------------------------------------------------------------
     converted: dict[str, float] = {}
-    for name in FIELDS:
+    for name in MODE_FIELDS[mode]:
         if name not in raw:
             errors[name] = "กรุณากรอกค่านี้"
             continue
@@ -194,18 +247,19 @@ def parse_inputs(raw: Mapping[str, object]) -> tuple[BiasInput, ValidationError]
     # ------------------------------------------------------------------
     inp = BiasInput(
         vcc=converted["vcc"],
-        r1=converted["r1"],
-        r2=converted["r2"],
+        r1=converted.get("r1", 0.0),
+        r2=converted.get("r2", 0.0),
         rc=converted["rc"],
-        re=converted["re"],
+        re=converted.get("re", 0.0),
         beta=converted["beta"],
         vbe=converted["vbe"],
+        rb=converted.get("rb", 0.0),
     )
 
     # ------------------------------------------------------------------
     # 4) Run rule‑level validation — may raise ValidationError
     # ------------------------------------------------------------------
-    rule_errors = validate_inputs(inp)  # returns dict, may be non-empty
+    rule_errors = validate_inputs(inp, mode)  # returns dict, may be non-empty
 
     # ------------------------------------------------------------------
     # 5) If validation found problems, raise
@@ -391,6 +445,175 @@ def solve_numerical(inp: BiasInput) -> BiasResult:
 
 
 # ---------------------------------------------------------------------------
+# Fixed-bias solver (Lab 03)
+# ---------------------------------------------------------------------------
+
+def _make_result(
+    vbb_v: float,
+    rb_ohm: float,
+    ib: float,
+    ic: float,
+    ie: float,
+    vce: float,
+    vb: float,
+    ve: float,
+    vc: float,
+    vcc: float,
+) -> BiasResult:
+    """Classify a solved operating point and build a BiasResult.
+
+    Shared by the fixed- and emitter-bias solvers so their region/warning
+    behaviour matches the divider solver exactly.
+    """
+    if ib <= 0:
+        return BiasResult(
+            vbb_v=vbb_v,
+            rb_ohm=rb_ohm,
+            ib_a=0.0,
+            ic_a=0.0,
+            ie_a=0.0,
+            vce_v=float(vcc),
+            vb_v=vbb_v,
+            ve_v=0.0,
+            vc_v=float(vcc),
+            region="cutoff",
+            warning="ทรานซิสเตอร์อยู่ในย่านคัตออฟ (IB = 0) — ไม่มีกระแสสะสม",
+        )
+
+    if vce <= VCE_SAT_V:
+        return BiasResult(
+            vbb_v=vbb_v,
+            rb_ohm=rb_ohm,
+            ib_a=ib,
+            ic_a=ic,
+            ie_a=ie,
+            vce_v=vce,
+            vb_v=vb,
+            ve_v=ve,
+            vc_v=vc,
+            region="saturation",
+            warning="ทรานซิสเตอร์อยู่ในย่านแซทเทอเรชัน (VCE ≤ 0.2 V) — ค่าที่ได้จากสมการแอกทีฟใช้ไม่ได้จริง",
+        )
+
+    return BiasResult(
+        vbb_v=vbb_v,
+        rb_ohm=rb_ohm,
+        ib_a=ib,
+        ic_a=ic,
+        ie_a=ie,
+        vce_v=vce,
+        vb_v=vb,
+        ve_v=ve,
+        vc_v=vc,
+        region="active",
+        warning=None,
+    )
+
+
+def solve_fixed_bias(inp: BiasInput) -> BiasResult:
+    """Fixed base bias: IB = (VCC - VBE) / RB, with the emitter grounded.
+
+    VBB is the supply seen through RB, so the Thevenin note reports
+    VBB = VCC and RB = RB.  There is no emitter resistor, hence VE = 0.
+    """
+    ib = (inp.vcc - inp.vbe) / inp.rb
+    ic = inp.beta * ib
+    ie = (1 + inp.beta) * ib
+
+    ve = 0.0
+    vc = inp.vcc - ic * inp.rc
+    vb = inp.vbe
+    vce = vc - ve
+
+    return _make_result(
+        vbb_v=inp.vcc,
+        rb_ohm=inp.rb,
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vce=vce,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vcc=inp.vcc,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Emitter-bias solver (Lab 03)
+# ---------------------------------------------------------------------------
+
+def solve_emitter_bias(inp: BiasInput) -> BiasResult:
+    """Emitter bias: IB = (VCC - VBE) / (RB + (1 + beta) RE)."""
+    ib = (inp.vcc - inp.vbe) / (inp.rb + (1 + inp.beta) * inp.re)
+    ic = inp.beta * ib
+    ie = (1 + inp.beta) * ib
+
+    ve = ie * inp.re
+    vc = inp.vcc - ic * inp.rc
+    vb = ve + inp.vbe
+    vce = vc - ve
+
+    return _make_result(
+        vbb_v=inp.vcc,
+        rb_ohm=inp.rb,
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vce=vce,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vcc=inp.vcc,
+    )
+
+
+def _emitter_base_kcl(inp: BiasInput, vb: float) -> float:
+    """KCL at the base node for emitter bias.
+
+    f(VB) = (VCC - VB)/RB - max(0, VB - VBE)/((1 + beta) RE)
+
+    Strictly decreasing on [0, VCC], so bisection converges.
+    """
+    ib = max(0.0, vb - inp.vbe) / ((1 + inp.beta) * inp.re)
+    return (inp.vcc - vb) / inp.rb - ib
+
+
+def solve_numerical_emitter(inp: BiasInput) -> BiasResult:
+    """Independent bisection check for emitter bias (does not use the
+    closed-form IB equation directly)."""
+    low, high = 0.0, inp.vcc
+    for _ in range(200):
+        mid = (low + high) / 2
+        if _emitter_base_kcl(inp, mid) > 0:
+            low = mid
+        else:
+            high = mid
+    vb_node = (low + high) / 2
+
+    ib = max(0.0, vb_node - inp.vbe) / ((1 + inp.beta) * inp.re)
+    ic = inp.beta * ib
+    ie = (1 + inp.beta) * ib
+
+    ve = ie * inp.re
+    vc = inp.vcc - ic * inp.rc
+    vce = vc - ve
+
+    return _make_result(
+        vbb_v=inp.vcc,
+        rb_ohm=inp.rb,
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vce=vce,
+        vb=ve + inp.vbe,
+        ve=ve,
+        vc=vc,
+        vcc=inp.vcc,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Cross‑check / comparison
 # ---------------------------------------------------------------------------
 
@@ -427,15 +650,48 @@ def compare_results(
 # High‑level convenience wrapper
 # ---------------------------------------------------------------------------
 
-def analyze(inp: BiasInput) -> dict[str, object]:
-    """Produce a complete analysis dict for a given BiasInput.
-
-    The returned dict has three top‑level keys:
-      primary  — result from solve_thevenin
-      check    — result from solve_numerical
-      comparison — dict from compare_results(primary, check)
-    """
+def analyze_divider(inp: BiasInput) -> dict[str, object]:
+    """Voltage-divider analysis: Thevenin primary + numerical check."""
     primary = solve_thevenin(inp)
     check = solve_numerical(inp)
-    comparison = compare_results(primary, check)
-    return {"primary": primary, "check": check, "comparison": comparison}
+    return {
+        "primary": primary,
+        "check": check,
+        "comparison": compare_results(primary, check),
+    }
+
+
+def analyze_fixed(inp: BiasInput) -> dict[str, object]:
+    """Fixed-bias analysis: no independent cross-check exists."""
+    return {"primary": solve_fixed_bias(inp), "check": None, "comparison": None}
+
+
+def analyze_emitter(inp: BiasInput) -> dict[str, object]:
+    """Emitter-bias analysis: closed form + bisection KCL check."""
+    primary = solve_emitter_bias(inp)
+    check = solve_numerical_emitter(inp)
+    return {
+        "primary": primary,
+        "check": check,
+        "comparison": compare_results(primary, check),
+    }
+
+
+def analyze(inp: BiasInput, mode: str = "divider") -> dict[str, object]:
+    """Produce a complete analysis dict for a given BiasInput and mode.
+
+    The returned dict always has three top‑level keys:
+      primary    — BiasResult from the selected mode's closed-form solver
+      check      — independent BiasResult, or None when the mode has no
+                   meaningful self-consistent cross-check (fixed bias)
+      comparison — dict from compare_results, or None when check is None
+
+    ``divider`` is the default so the Lab 02 API keeps working unchanged.
+    """
+    if mode == "divider":
+        return analyze_divider(inp)
+    elif mode == "fixed":
+        return analyze_fixed(inp)
+    elif mode == "emitter":
+        return analyze_emitter(inp)
+    raise ValidationError({"mode": MODE_ERROR})

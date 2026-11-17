@@ -154,6 +154,53 @@
         .btn-calculate:focus-visible { outline: 3px solid #99f6e4; outline-offset: 2px; }
         .btn-calculate svg { width: 20px; height: 20px; }
 
+        /* --- Mode selector --- */
+        .mode-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+            padding: 4px;
+            background: #eef4fb;
+            border: 1px solid var(--blue-border);
+            border-radius: 10px;
+        }
+        .mode-tab {
+            display: block;
+            padding: 9px 6px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--blue-ink);
+            font-size: 13.5px;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1px solid transparent;
+        }
+        .mode-tab:hover { background: #dbeafe; }
+        .mode-tab:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+        .mode-tab[aria-current="page"] {
+            background: var(--card);
+            border-color: var(--blue-border);
+            color: var(--teal-dark);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        }
+        .mode-hint {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .mode-hint .var { font-style: italic; font-family: "Cambria Math", Georgia, serif; }
+        .form-alert {
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            background: var(--bad-bg);
+            border: 1px solid var(--bad-border);
+            border-radius: 8px;
+            color: var(--bad-ink);
+            font-size: 13px;
+        }
+
         /* --- Circuit card --- */
         .circuit-figure { margin: 0; }
         .circuit-figure svg { display: block; width: 100%; max-width: 400px; margin: 0 auto; height: auto; }
@@ -245,6 +292,17 @@
     </style>
 </head>
 <body>
+    {% set mode = mode|default('divider') %}
+    {% set mode_labels = {
+        "divider": "Voltage Divider Bias",
+        "fixed": "Fixed Bias",
+        "emitter": "Emitter Bias",
+    } %}
+    {% set mode_hints = {
+        "divider": "I_B = (V_TH − V_BE) / [R_TH + (β+1)R_E]",
+        "fixed": "I_B = (V_CC − V_BE) / R_B",
+        "emitter": "I_B = (V_CC − V_BE) / [R_B + (β+1)R_E]",
+    } %}
     <div class="app">
         <header class="topbar">
             <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -254,8 +312,8 @@
                 <path d="M9 3v4M12 3v4M15 3v4M9 17v4M12 17v4M15 17v4M3 9h4M3 12h4M3 15h4M17 9h4M17 12h4M17 15h4"></path>
             </svg>
             <div>
-                <h1>Lab 02: BJT DC Bias Web App</h1>
-                <p class="subtitle">ENG29 2121 – Common Emitter (Voltage Divider Bias)</p>
+                <h1>Lab 03: BJT DC Bias Web App</h1>
+                <p class="subtitle">ENG29 2121 – Fixed / Emitter / Voltage Divider Bias (ต่อยอดจาก Lab 02: BJT DC Bias Web App)</p>
             </div>
             <div class="course-badge">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -266,6 +324,24 @@
             </div>
         </header>
 
+        {% if mode == "fixed" %}
+        {% set fields = [
+            ("vcc", "V", "CC", "Supply Voltage", "V"),
+            ("rb", "R", "B", "Base Resistor", "Ω"),
+            ("rc", "R", "C", "Collector Resistor", "Ω"),
+            ("beta", "β", "", "Current Gain", "–"),
+            ("vbe", "V", "BE", "Base-Emitter Voltage", "V"),
+        ] %}
+        {% elif mode == "emitter" %}
+        {% set fields = [
+            ("vcc", "V", "CC", "Supply Voltage", "V"),
+            ("rb", "R", "B", "Base Resistor", "Ω"),
+            ("rc", "R", "C", "Collector Resistor", "Ω"),
+            ("re", "R", "E", "Emitter Resistor", "Ω"),
+            ("beta", "β", "", "Current Gain", "–"),
+            ("vbe", "V", "BE", "Base-Emitter Voltage", "V"),
+        ] %}
+        {% else %}
         {% set fields = [
             ("vcc", "V", "CC", "Supply Voltage", "V"),
             ("r1", "R", "1", "Upper Divider", "Ω"),
@@ -275,6 +351,15 @@
             ("beta", "β", "", "Current Gain", "–"),
             ("vbe", "V", "BE", "Base-Emitter Voltage", "V"),
         ] %}
+        {% endif %}
+
+        {% if mode == "fixed" %}
+        {% set circuit_title = "Circuit: Fixed Bias" %}
+        {% elif mode == "emitter" %}
+        {% set circuit_title = "Circuit: Emitter Bias" %}
+        {% else %}
+        {% set circuit_title = "Circuit: Common-Emitter Amplifier" %}
+        {% endif %}
 
         {% set region_labels = {
             "active": "แอกทีฟ (Active)",
@@ -293,7 +378,23 @@
                     <h2>Input Parameters</h2>
                 </div>
 
+                <nav class="mode-tabs" aria-label="เลือกโหมดไบอัส">
+                    {% for key in ("divider", "fixed", "emitter") %}
+                    <a class="mode-tab" href="/?mode={{ key }}"
+                       {% if mode == key %}aria-current="page"{% endif %}>{{ mode_labels[key] }}</a>
+                    {% endfor %}
+                </nav>
+                <p class="mode-hint">โหมดที่เลือก: <strong>{{ mode_labels[mode] }}</strong> · {{ mode_hints[mode] }}</p>
+
+                {% if errors %}
+                <p class="form-alert">
+                    {% if errors.get("mode") %}{{ errors["mode"] }} — {% endif %}
+                    พบข้อผิดพลาดในโหมด {{ mode_labels[mode] }} — กรุณาตรวจสอบค่าที่กรอก
+                </p>
+                {% endif %}
+
                 <form method="post" action="/calculate">
+                    <input type="hidden" name="mode" value="{{ mode }}">
                     {% for name, sym, sub, desc, unit in fields %}
                     <div class="field-row">
                         <label class="field-label" for="{{ name }}">
@@ -301,8 +402,8 @@
                             ({{ desc }})
                         </label>
                         <input class="field-input" type="text" id="{{ name }}" name="{{ name }}"
-                               value="{{ values[name] }}" required
-                               {% if errors[name] %}aria-describedby="{{ name }}-error"{% endif %}>
+                               value="{{ values.get(name, '') }}" required
+                               {% if errors.get(name) %}aria-describedby="{{ name }}-error"{% endif %}>
                         <span class="unit" aria-hidden="true">{{ unit }}</span>
                         {% if errors[name] %}
                         <p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>
@@ -330,8 +431,140 @@
                         <circle cx="12" cy="18" r="2.2"></circle>
                         <path d="M8.2 6h7.6M7 8l4 8M17 8l-4 8"></path>
                     </svg>
-                    <h2>Circuit: Common-Emitter Amplifier</h2>
+                    <h2>{{ circuit_title }}</h2>
                 </div>
+                {% if mode == "fixed" %}
+                <figure class="circuit-figure">
+                    <svg viewBox="0 0 380 440" role="img" aria-labelledby="circuit-title">
+                        <title id="circuit-title">Fixed-bias circuit</title>
+
+                        <!-- Transistor body: painted first so the symbol sits on top -->
+                        <circle id="q-body" class="q-body" cx="248" cy="225" r="30"></circle>
+
+                        <g class="wire">
+                            <!-- VCC rail, collector branch and base resistor -->
+                            <path d="M262 42 H150 V92"></path>
+                            <path d="M262 42 V92"></path>
+                            <path d="M262 177 V198"></path>
+                            <path id="q-collector" d="M262 198 L232 215"></path>
+                            <path id="q-emitter" d="M232 235 L262 252"></path>
+                            <!-- Fixed bias: emitter is grounded directly (no RE) -->
+                            <path d="M262 252 V378"></path>
+                            <!-- Base branch from RB to the base -->
+                            <path d="M150 177 V226"></path>
+                            <path d="M150 226 H232"></path>
+                        </g>
+
+                        <!-- Base bar of the transistor symbol -->
+                        <path id="q-bar" class="q-bar" d="M232 207 V243"></path>
+
+                        <!-- Resistors: RB and RC only -->
+                        <g class="wire">
+                            <polyline points="150,92 139,102 161,114 139,126 161,138 139,150 161,162 150,177"></polyline>
+                            <polyline points="262,92 251,102 273,114 251,126 273,138 251,150 273,162 262,177"></polyline>
+                        </g>
+
+                        <!-- Emitter arrow and connection nodes -->
+                        <polygon class="node" points="262,252 249.5,251.8 255.3,241.4"></polygon>
+                        <circle class="node" cx="262" cy="42" r="3.5"></circle>
+                        <circle class="node" cx="150" cy="226" r="3.5"></circle>
+
+                        <!-- Ground -->
+                        <g class="wire">
+                            <path d="M250 378 H274"></path>
+                            <path d="M255 385 H269"></path>
+                            <path d="M259 392 H265"></path>
+                        </g>
+
+                        <!-- Labels -->
+                        <text class="lbl" x="262" y="24" text-anchor="middle">
+                            <tspan font-style="italic">V</tspan><tspan baseline-shift="sub" font-size="9">CC</tspan>
+                            = {{ values.get("vcc", "") }} V
+                        </text>
+                        <text class="lbl" x="136" y="134" text-anchor="end">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">B</tspan>
+                        </text>
+                        <text class="lbl strong" x="136" y="152" text-anchor="end">{{ values.get("rb", "")|ohm }}</text>
+                        <text class="lbl" x="278" y="134">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">C</tspan>
+                        </text>
+                        <text class="lbl strong" x="278" y="152">{{ values.get("rc", "")|ohm }}</text>
+                        <text class="lbl" x="290" y="216">
+                            <tspan font-style="italic">Q</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
+                        </text>
+                        <text class="lbl" x="290" y="234">NPN</text>
+                        <text class="lbl" x="290" y="252">(β = {{ values.get("beta", "") }})</text>
+                    </svg>
+                </figure>
+                {% elif mode == "emitter" %}
+                <figure class="circuit-figure">
+                    <svg viewBox="0 0 380 440" role="img" aria-labelledby="circuit-title">
+                        <title id="circuit-title">Emitter-bias circuit</title>
+
+                        <!-- Transistor body: painted first so the symbol sits on top -->
+                        <circle id="q-body" class="q-body" cx="248" cy="225" r="30"></circle>
+
+                        <g class="wire">
+                            <!-- VCC rail, collector branch and base resistor -->
+                            <path d="M262 42 H150 V92"></path>
+                            <path d="M262 42 V92"></path>
+                            <path d="M262 177 V198"></path>
+                            <path id="q-collector" d="M262 198 L232 215"></path>
+                            <path id="q-emitter" d="M232 235 L262 252"></path>
+                            <path d="M262 252 V272"></path>
+                            <path d="M262 357 V378"></path>
+                            <!-- Base branch from RB to the base -->
+                            <path d="M150 177 V226"></path>
+                            <path d="M150 226 H232"></path>
+                        </g>
+
+                        <!-- Base bar of the transistor symbol -->
+                        <path id="q-bar" class="q-bar" d="M232 207 V243"></path>
+
+                        <!-- Resistors: RB, RC and RE -->
+                        <g class="wire">
+                            <polyline points="150,92 139,102 161,114 139,126 161,138 139,150 161,162 150,177"></polyline>
+                            <polyline points="262,92 251,102 273,114 251,126 273,138 251,150 273,162 262,177"></polyline>
+                            <polyline points="262,272 251,282 273,294 251,306 273,318 251,330 273,342 262,357"></polyline>
+                        </g>
+
+                        <!-- Emitter arrow and connection nodes -->
+                        <polygon class="node" points="262,252 249.5,251.8 255.3,241.4"></polygon>
+                        <circle class="node" cx="262" cy="42" r="3.5"></circle>
+                        <circle class="node" cx="150" cy="226" r="3.5"></circle>
+
+                        <!-- Ground -->
+                        <g class="wire">
+                            <path d="M250 378 H274"></path>
+                            <path d="M255 385 H269"></path>
+                            <path d="M259 392 H265"></path>
+                        </g>
+
+                        <!-- Labels -->
+                        <text class="lbl" x="262" y="24" text-anchor="middle">
+                            <tspan font-style="italic">V</tspan><tspan baseline-shift="sub" font-size="9">CC</tspan>
+                            = {{ values.get("vcc", "") }} V
+                        </text>
+                        <text class="lbl" x="136" y="134" text-anchor="end">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">B</tspan>
+                        </text>
+                        <text class="lbl strong" x="136" y="152" text-anchor="end">{{ values.get("rb", "")|ohm }}</text>
+                        <text class="lbl" x="278" y="134">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">C</tspan>
+                        </text>
+                        <text class="lbl strong" x="278" y="152">{{ values.get("rc", "")|ohm }}</text>
+                        <text class="lbl" x="278" y="310">
+                            <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">E</tspan>
+                        </text>
+                        <text class="lbl strong" x="278" y="328">{{ values.get("re", "")|ohm }}</text>
+                        <text class="lbl" x="290" y="216">
+                            <tspan font-style="italic">Q</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
+                        </text>
+                        <text class="lbl" x="290" y="234">NPN</text>
+                        <text class="lbl" x="290" y="252">(β = {{ values.get("beta", "") }})</text>
+                    </svg>
+                </figure>
+                {% else %}
                 <figure class="circuit-figure">
                     <svg viewBox="0 0 380 440" role="img" aria-labelledby="circuit-title">
                         <title id="circuit-title">Voltage-divider bias circuit</title>
@@ -384,36 +617,37 @@
                         <!-- Labels -->
                         <text class="lbl" x="262" y="24" text-anchor="middle">
                             <tspan font-style="italic">V</tspan><tspan baseline-shift="sub" font-size="9">CC</tspan>
-                            = {{ values.vcc }} V
+                            = {{ values.get("vcc", "") }} V
                         </text>
 
                         <text class="lbl" x="136" y="134" text-anchor="end">
                             <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
                         </text>
-                        <text class="lbl strong" x="136" y="152" text-anchor="end">{{ values.r1|ohm }}</text>
+                        <text class="lbl strong" x="136" y="152" text-anchor="end">{{ values.get("r1", "")|ohm }}</text>
 
                         <text class="lbl" x="136" y="294" text-anchor="end">
                             <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">2</tspan>
                         </text>
-                        <text class="lbl strong" x="136" y="312" text-anchor="end">{{ values.r2|ohm }}</text>
+                        <text class="lbl strong" x="136" y="312" text-anchor="end">{{ values.get("r2", "")|ohm }}</text>
 
                         <text class="lbl" x="278" y="134">
                             <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">C</tspan>
                         </text>
-                        <text class="lbl strong" x="278" y="152">{{ values.rc|ohm }}</text>
+                        <text class="lbl strong" x="278" y="152">{{ values.get("rc", "")|ohm }}</text>
 
                         <text class="lbl" x="278" y="310">
                             <tspan font-style="italic">R</tspan><tspan baseline-shift="sub" font-size="9">E</tspan>
                         </text>
-                        <text class="lbl strong" x="278" y="328">{{ values.re|ohm }}</text>
+                        <text class="lbl strong" x="278" y="328">{{ values.get("re", "")|ohm }}</text>
 
                         <text class="lbl" x="290" y="216">
                             <tspan font-style="italic">Q</tspan><tspan baseline-shift="sub" font-size="9">1</tspan>
                         </text>
                         <text class="lbl" x="290" y="234">NPN</text>
-                        <text class="lbl" x="290" y="252">(β = {{ values.beta }})</text>
+                        <text class="lbl" x="290" y="252">(β = {{ values.get("beta", "") }})</text>
                     </svg>
                 </figure>
+                {% endif %}
             </section>
 
             {% if analysis is not none %}
@@ -423,7 +657,7 @@
                          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path>
                     </svg>
-                    <h2>DC Bias Results</h2>
+                    <h2>DC Bias Results — {{ mode_labels[mode] }}</h2>
                 </div>
 
                 <table class="results-table">
@@ -460,8 +694,13 @@
                 </table>
 
                 <p class="thevenin-note">
+                    {% if mode == "divider" %}
                     ค่าเทียบเคียง Thevenin: V<sub>BB</sub> = {{ analysis.primary.vbb_v|si("V") }}
                     · R<sub>B</sub> = {{ analysis.primary.rb_ohm|si("Ω") }}
+                    {% else %}
+                    แหล่งจ่ายฐานผ่าน R<sub>B</sub>: V<sub>BB</sub> = {{ analysis.primary.vbb_v|si("V") }}
+                    · R<sub>B</sub> = {{ analysis.primary.rb_ohm|si("Ω") }}
+                    {% endif %}
                 </p>
 
                 <span class="region-badge region-{{ analysis.primary.region }}">
@@ -471,9 +710,10 @@
                 <p class="region-warning">{{ analysis.primary.warning }}</p>
                 {% endif %}
 
+                {% if analysis.check is not none %}
                 <div class="check-box" data-state="{{ 'agrees' if analysis.comparison.agrees else 'disagrees' }}">
                     <h3>การตรวจสอบข้าม</h3>
-                    <p>แบบจำลอง Thevenin: IC = {{ analysis.primary.ic_a|si("A") }}, VCE = {{ analysis.primary.vce_v|si("V") }}</p>
+                    <p>แบบจำลองสูตรปิด: IC = {{ analysis.primary.ic_a|si("A") }}, VCE = {{ analysis.primary.vce_v|si("V") }}</p>
                     <p>แบบจำลองเชิงตัวเลข: IC = {{ analysis.check.ic_a|si("A") }}, VCE = {{ analysis.check.vce_v|si("V") }}</p>
                     <p class="state">
                         {% if analysis.comparison.agrees %}ผลลัพธ์ตรงกัน (Agrees){% else %}ผลลัพธ์ไม่ตรงกัน (Disagrees){% endif %}
@@ -481,6 +721,7 @@
                     <p>ความแตกต่างของ IC: {{ "%.2e" % analysis.comparison.delta_ic_a }} A</p>
                     <p>ความแตกต่างของ VCE: {{ "%.3f" % analysis.comparison.delta_vce_v }} V</p>
                 </div>
+                {% endif %}
             </section>
             {% else %}
             <section class="card results-card-empty">
@@ -489,10 +730,10 @@
                          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path>
                     </svg>
-                    <h2>DC Bias Results</h2>
+                    <h2>DC Bias Results — {{ mode_labels[mode] }}</h2>
                 </div>
                 <div class="results-placeholder">
-                    กรอกพารามิเตอร์แล้วกด “คำนวณ DC Bias” เพื่อดูผลลัพธ์
+                    กรอกพารามิเตอร์ของ {{ mode_labels[mode] }} แล้วกด “คำนวณ DC Bias” เพื่อดูผลลัพธ์
                 </div>
             </section>
             {% endif %}
